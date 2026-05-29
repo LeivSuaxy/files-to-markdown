@@ -88,3 +88,6 @@ jobs:
             file-to-markdown-Windows/file-to-markdown-windows.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  contents: write
