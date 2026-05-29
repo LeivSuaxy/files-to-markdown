@@ -39,6 +39,12 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Install Tk (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
       - name: Build executable
         run: uv run pyinstaller --clean --noconfirm --onefile --name "${{ env.APP_NAME }}" --collect-all markitdown --collect-all magika src/main.py
 
@@ -49,8 +55,6 @@ jobs:
       - name: Move binary (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-tk
           mv dist/${{ env.APP_NAME }} output/${{ env.APP_NAME }}-linux
 
       - name: Move binary (Windows)
