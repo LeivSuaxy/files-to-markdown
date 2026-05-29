@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  APP_NAME: file-to-markdown
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable
+        run: |
+          uv run pyinstaller \
+            --clean \
+            --noconfirm \
+            --onefile \
+            --name "${{ env.APP_NAME }}" \
+            --collect-all markitdown \
+            --collect-all magika \
+            src/main.py
+
+      - name: Prepare output folder
+        run: mkdir output
+        shell: bash
+
+      - name: Move binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mv dist/${{ env.APP_NAME }} output/${{ env.APP_NAME }}-linux
+
+      - name: Move binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          move dist\${{ env.APP_NAME }}.exe output\${{ env.APP_NAME }}-windows.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ runner.os }}
+          path: output/*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: List files (debug)
+        run: ls -R
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            file-to-markdown-Linux/file-to-markdown-linux
+            file-to-markdown-Windows/file-to-markdown-windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
